@@ -9,5 +9,7 @@ img2tikz
 Thumbs.db
 
 # Generated TikZ and PDF artifacts
+test/tikz-output/*.tex
+test/pdf-output/*.pdf
 test/pdf-output/*.aux
 test/pdf-output/*.log

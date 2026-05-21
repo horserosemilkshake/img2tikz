@@ -48,6 +48,31 @@ pdflatex your-image.tex
 If you want to embed the picture in an existing document instead, copy only the
 `tikzpicture` environment from the generated file.
 
+## Test The Executable
+
+Use the batch script below to run an end-to-end test:
+
+```sh
+sh test/generate_all.sh
+```
+
+What it does:
+
+- Scans `test/input` for supported image files (`.jpg`, `.jpeg`, `.png`, `.webp`, `.svg`).
+- Converts each image to TikZ in `test/tikz-output`.
+- Compiles generated `.tex` files to PDFs in `test/pdf-output`.
+
+Useful overrides:
+
+```sh
+MAX_SIDE=1920 QUANT_STEP=16 sh test/generate_all.sh
+```
+
+- `MAX_SIDE`: Maximum raster side length before conversion.
+- `QUANT_STEP`: Color quantization step (higher values reduce TikZ complexity).
+- `MIN_SIDE`: Lower bound used by the script when it retries after LaTeX compile failures.
+- `CELL_PT`: TikZ point size per source pixel.
+
 ## Notes
 
 - Large images generate very large TikZ files. `--max-side` helps keep output manageable.
