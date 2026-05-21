@@ -1,0 +1,13 @@
+# Build artifacts
+img2tikz
+*.o
+*.obj
+*.out
+
+# Editor/system files
+.DS_Store
+Thumbs.db
+
+# Generated TikZ and PDF artifacts
+test/pdf-output/*.aux
+test/pdf-output/*.log
