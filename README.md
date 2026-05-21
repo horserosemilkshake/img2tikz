@@ -53,7 +53,7 @@ If you want to embed the picture in an existing document instead, copy only the
 Use the batch script below to run an end-to-end test:
 
 ```sh
-sh test/generate_all.sh
+bash test/generate_all.sh
 ```
 
 What it does:
@@ -65,7 +65,7 @@ What it does:
 Useful overrides:
 
 ```sh
-MAX_SIDE=1920 QUANT_STEP=16 sh test/generate_all.sh
+MAX_SIDE=1920 QUANT_STEP=16 bash test/generate_all.sh
 ```
 
 - `MAX_SIDE`: Maximum raster side length before conversion.

@@ -27,7 +27,7 @@ jobs:
 
       - name: End-to-end test
         run: |
-          MAX_SIDE=1024 QUANT_STEP=16 sh test/generate_all.sh
+          MAX_SIDE=1024 QUANT_STEP=16 bash test/generate_all.sh
 
       - name: Upload test artifacts
         if: always()
