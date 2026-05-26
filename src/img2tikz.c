@@ -14,6 +14,13 @@
 #include <unistd.h>
 #endif
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4456)
+#pragma warning(disable : 4702)
+#endif
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "../third_party/stb_image.h"
 
@@ -21,6 +28,10 @@
 #include "../third_party/nanosvg.h"
 #define NANOSVGRAST_IMPLEMENTATION
 #include "../third_party/nanosvgrast.h"
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 typedef struct {
     int width;

@@ -201,6 +201,28 @@ static int test_remove(const char *path) {
         }                                                                              \
     } while (0)
 
+static const char *test_tmp_dir(void) {
+    const char *dir = getenv("TMPDIR");
+    if (!dir || dir[0] == '\0') {
+        dir = getenv("TEMP");
+    }
+    if (!dir || dir[0] == '\0') {
+        dir = getenv("TMP");
+    }
+    if (!dir || dir[0] == '\0') {
+        dir = ".";
+    }
+    return dir;
+}
+
+static void make_temp_path(char *out, size_t out_sz, const char *leaf) {
+#ifdef _WIN32
+    (void)snprintf(out, out_sz, "%s\\%s", test_tmp_dir(), leaf);
+#else
+    (void)snprintf(out, out_sz, "%s/%s", test_tmp_dir(), leaf);
+#endif
+}
+
 static int write_bytes(const char *path, const unsigned char *buf, size_t n) {
     FILE *f = fopen(path, "wb");
     if (!f) {
@@ -349,53 +371,65 @@ static int test_load_raster_and_svg_and_dispatch(void) {
         68, 174, 66, 96, 130,
     };
 
-    CHECK(write_bytes("/tmp/tiny.png", tiny_png, sizeof(tiny_png)) == 1);
-    CHECK(write_text("/tmp/tiny.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"><rect width=\"1\" height=\"1\" fill=\"#00ff00\"/></svg>") == 1);
-    CHECK(write_text("/tmp/tiny-h0.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"0\"><rect width=\"1\" height=\"0\" fill=\"#00ff00\"/></svg>") == 1);
+    char tiny_png_path[512];
+    char tiny_svg_path[512];
+    char tiny_h0_svg_path[512];
+    char missing_svg_path[512];
+    char no_loader_path[512];
+    make_temp_path(tiny_png_path, sizeof(tiny_png_path), "tiny.png");
+    make_temp_path(tiny_svg_path, sizeof(tiny_svg_path), "tiny.svg");
+    make_temp_path(tiny_h0_svg_path, sizeof(tiny_h0_svg_path), "tiny-h0.svg");
+    make_temp_path(missing_svg_path, sizeof(missing_svg_path), "definitely-not-existing.svg");
+    make_temp_path(no_loader_path, sizeof(no_loader_path), "no-loader.xyz");
+
+    CHECK(write_bytes(tiny_png_path, tiny_png, sizeof(tiny_png)) == 1);
+    CHECK(write_text(tiny_svg_path, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"><rect width=\"1\" height=\"1\" fill=\"#00ff00\"/></svg>") == 1);
+    CHECK(write_text(tiny_h0_svg_path, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"0\"><rect width=\"1\" height=\"0\" fill=\"#00ff00\"/></svg>") == 1);
 
     Image img;
     img.width = 0;
     img.height = 0;
     img.rgba = NULL;
-    CHECK(load_raster_image("/tmp/tiny.png", &img) == 1);
+    CHECK(load_raster_image(tiny_png_path, &img) == 1);
     CHECK(img.width == 1 && img.height == 1);
     free_image(&img);
-    CHECK(load_raster_image("/tmp/not-found.png", &img) == 0);
+    CHECK(load_raster_image("this-file-should-not-exist.png", &img) == 0);
 
-    CHECK(load_svg_image("/tmp/tiny.svg", &img) == 1);
+    CHECK(load_svg_image(tiny_svg_path, &img) == 1);
     CHECK(img.width == 1 && img.height == 1);
     free_image(&img);
-    CHECK(load_svg_image("/tmp/definitely-not-existing.svg", &img) == 0);
+    CHECK(load_svg_image(missing_svg_path, &img) == 0);
 
     img2tikz_test_force_svg_zero_size = 1;
-    CHECK(load_svg_image("/tmp/tiny.svg", &img) == 1);
+    CHECK(load_svg_image(tiny_svg_path, &img) == 1);
     CHECK(img.width == 512 && img.height == 512);
     free_image(&img);
     img2tikz_test_force_svg_zero_size = 0;
 
-    CHECK(load_svg_image("/tmp/tiny-h0.svg", &img) == 1);
+    CHECK(load_svg_image(tiny_h0_svg_path, &img) == 1);
     CHECK(img.width == 512 && img.height == 512);
     free_image(&img);
 
     img2tikz_test_force_svg_malloc_fail = 1;
-    CHECK(load_svg_image("/tmp/tiny.svg", &img) == 0);
+    CHECK(load_svg_image(tiny_svg_path, &img) == 0);
     img2tikz_test_force_svg_malloc_fail = 0;
 
     img2tikz_test_force_svg_rasterizer_fail = 1;
-    CHECK(load_svg_image("/tmp/tiny.svg", &img) == 0);
+    CHECK(load_svg_image(tiny_svg_path, &img) == 0);
     img2tikz_test_force_svg_rasterizer_fail = 0;
 
-    CHECK(load_image_any("/tmp/tiny.svg", &img) == 1);
+    CHECK(load_image_any(tiny_svg_path, &img) == 1);
     free_image(&img);
-    CHECK(load_image_any("/tmp/tiny.png", &img) == 1);
+    CHECK(load_image_any(tiny_png_path, &img) == 1);
     free_image(&img);
 
     img2tikz_test_force_can_load_any = 0;
-    CHECK(load_image_any("/tmp/no-loader.xyz", &img) == 0);
+    CHECK(load_image_any(no_loader_path, &img) == 0);
     img2tikz_test_force_can_load_any = -1;
     return 0;
 }
 
+#ifndef _WIN32
 static int test_webp_loader_branches(void) {
     static const unsigned char tiny_png[] = {
         137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82,
@@ -457,9 +491,12 @@ static int test_webp_loader_branches(void) {
 
     return 0;
 }
+#endif
 
 static int test_convert_image_to_tikz_paths(void) {
-    CHECK(write_text("/tmp/ok.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"2\" height=\"1\"><rect width=\"2\" height=\"1\" fill=\"#112233\"/></svg>") == 1);
+    char ok_svg_path[512];
+    make_temp_path(ok_svg_path, sizeof(ok_svg_path), "ok.svg");
+    CHECK(write_text(ok_svg_path, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"2\" height=\"1\"><rect width=\"2\" height=\"1\" fill=\"#112233\"/></svg>") == 1);
 
     Options opt;
     opt.cell_pt = 1.0f;
@@ -468,27 +505,42 @@ static int test_convert_image_to_tikz_paths(void) {
 
     FILE *f = tmpfile();
     CHECK(f != NULL);
-    CHECK(convert_image_to_tikz(f, "/tmp/ok.svg", &opt) == 1);
+    CHECK(convert_image_to_tikz(f, ok_svg_path, &opt) == 1);
     fclose(f);
 
-    CHECK(convert_image_to_tikz(stdout, "/tmp/does-not-exist.png", &opt) == 0);
+    CHECK(convert_image_to_tikz(stdout, "this-file-should-not-exist.png", &opt) == 0);
 
     img2tikz_test_force_downscale_fail = 1;
     opt.max_side = 1;
-    CHECK(convert_image_to_tikz(stdout, "/tmp/ok.svg", &opt) == 0);
+    CHECK(convert_image_to_tikz(stdout, ok_svg_path, &opt) == 0);
     img2tikz_test_force_downscale_fail = 0;
     opt.max_side = 0;
 
     g_force_fprintf_fail = 1;
     f = tmpfile();
     CHECK(f != NULL);
-    CHECK(convert_image_to_tikz(f, "/tmp/ok.svg", &opt) == 0);
+    CHECK(convert_image_to_tikz(f, ok_svg_path, &opt) == 0);
     fclose(f);
     g_force_fprintf_fail = 0;
     return 0;
 }
 
 static int test_main_argument_and_io_paths(void) {
+    char main_svg_path[512];
+    char main_out_path[512];
+    char main_fail_out_path[512];
+    char missing_png_path[512];
+    char bad_out_path[700];
+    make_temp_path(main_svg_path, sizeof(main_svg_path), "main.svg");
+    make_temp_path(main_out_path, sizeof(main_out_path), "main_out.tex");
+    make_temp_path(main_fail_out_path, sizeof(main_fail_out_path), "main_fail_out.tex");
+    make_temp_path(missing_png_path, sizeof(missing_png_path), "does-not-exist.png");
+#ifdef _WIN32
+    (void)snprintf(bad_out_path, sizeof(bad_out_path), "%s\\no_such_dir\\out.tex", test_tmp_dir());
+#else
+    (void)snprintf(bad_out_path, sizeof(bad_out_path), "%s/no_such_dir/out.tex", test_tmp_dir());
+#endif
+
     char *argv0[] = {"img2tikz", NULL};
     CHECK(img2tikz_program_main(1, argv0) == 2);
 
@@ -531,21 +583,21 @@ static int test_main_argument_and_io_paths(void) {
     char *argv5[] = {"img2tikz", "a", "b", "c", NULL};
     CHECK(img2tikz_program_main(4, argv5) == 2);
 
-    CHECK(write_text("/tmp/main.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"><rect width=\"1\" height=\"1\" fill=\"#000\"/></svg>") == 1);
+    CHECK(write_text(main_svg_path, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"><rect width=\"1\" height=\"1\" fill=\"#000\"/></svg>") == 1);
 
-    char *argv6[] = {"img2tikz", "/tmp/main.svg", "/definitely/no/such/dir/out.tex", NULL};
+    char *argv6[] = {"img2tikz", main_svg_path, bad_out_path, NULL};
     CHECK(img2tikz_program_main(3, argv6) == 1);
 
-    char *argv7[] = {"img2tikz", "--cell", "1.25", "--max-side", "16", "--quant-step", "8", "/tmp/main.svg", "/tmp/main_out.tex", NULL};
+    char *argv7[] = {"img2tikz", "--cell", "1.25", "--max-side", "16", "--quant-step", "8", main_svg_path, main_out_path, NULL};
     CHECK(img2tikz_program_main(9, argv7) == 0);
 
-    char *argv8[] = {"img2tikz", "/tmp/main.svg", NULL};
+    char *argv8[] = {"img2tikz", main_svg_path, NULL};
     CHECK(img2tikz_program_main(2, argv8) == 0);
 
-    char *argv9[] = {"img2tikz", "/tmp/does-not-exist.png", "/tmp/main_fail_out.tex", NULL};
+    char *argv9[] = {"img2tikz", missing_png_path, main_fail_out_path, NULL};
     CHECK(img2tikz_program_main(3, argv9) == 1);
 
-    char *argv10[] = {"img2tikz", "/tmp/does-not-exist.png", NULL};
+    char *argv10[] = {"img2tikz", missing_png_path, NULL};
     CHECK(img2tikz_program_main(2, argv10) == 1);
 
     return 0;
@@ -623,7 +675,9 @@ int main(void) {
     if (test_resize_and_downscale()) return 1;
     if (test_write_tikz_paths()) return 1;
     if (test_load_raster_and_svg_and_dispatch()) return 1;
+#ifndef _WIN32
     if (test_webp_loader_branches()) return 1;
+#endif
     if (test_convert_image_to_tikz_paths()) return 1;
     if (test_main_argument_and_io_paths()) return 1;
     if (test_write_tikz_remaining_error_branches()) return 1;
