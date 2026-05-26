@@ -9,6 +9,12 @@
 #include <string.h>
 #include <sys/types.h>
 
+#if defined(__GNUC__) || defined(__clang__)
+#define MAYBE_UNUSED __attribute__((unused))
+#else
+#define MAYBE_UNUSED
+#endif
+
 static int g_fail_malloc = 0;
 static int g_malloc_calls = 0;
 
@@ -87,7 +93,7 @@ static int test_fprintf(FILE *stream, const char *fmt, ...) {
     return rc;
 }
 
-static int test_mkstemp(char *tpl) {
+static int MAYBE_UNUSED test_mkstemp(char *tpl) {
     if (g_mock_mkstemp_fail) {
         errno = EACCES;
         return -1;
@@ -101,23 +107,23 @@ static int test_mkstemp(char *tpl) {
     return 10;
 }
 
-static int test_close(int fd) {
+static int MAYBE_UNUSED test_close(int fd) {
     (void)fd;
     return g_mock_close_rc;
 }
 
-static pid_t test_fork(void) {
+static pid_t MAYBE_UNUSED test_fork(void) {
     return (pid_t)g_mock_fork_rc;
 }
 
-static int test_execlp(const char *file, const char *arg, ...) {
+static int MAYBE_UNUSED test_execlp(const char *file, const char *arg, ...) {
     (void)file;
     (void)arg;
     errno = ENOENT;
     return -1;
 }
 
-static void test__exit(int status) {
+static void MAYBE_UNUSED test__exit(int status) {
     if (g_expect_exit) {
         g_exit_code = status;
         longjmp(g_exit_jmp, 1);
@@ -125,7 +131,7 @@ static void test__exit(int status) {
     abort();
 }
 
-static pid_t test_waitpid(pid_t pid, int *status, int options) {
+static pid_t MAYBE_UNUSED test_waitpid(pid_t pid, int *status, int options) {
     (void)options;
     ++g_mock_waitpid_calls;
 
