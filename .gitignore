@@ -3,13 +3,23 @@ img2tikz
 *.o
 *.obj
 *.out
+*.gcov
+*.gcda
+*.gcno
+tests/test_img2tikz
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile.cmake
+Testing/
 
 # Editor/system files
 .DS_Store
 Thumbs.db
 
 # Generated TikZ and PDF artifacts
-test/tikz-output/*.tex
-test/pdf-output/*.pdf
-test/pdf-output/*.aux
-test/pdf-output/*.log
+samples/tikz-output/*.tex
+samples/pdf-output/*.pdf
+samples/pdf-output/*.aux
+samples/pdf-output/*.log

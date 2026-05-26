@@ -2,12 +2,17 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
+#endif
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../third_party/stb_image.h"
@@ -37,6 +42,14 @@ typedef struct {
     CanLoadFn can_load;
     LoadImageFn load;
 } ImageLoader;
+
+#ifdef IMG2TIKZ_TEST_HOOKS
+extern int img2tikz_test_force_can_load_any;
+extern int img2tikz_test_force_svg_zero_size;
+extern int img2tikz_test_force_svg_malloc_fail;
+extern int img2tikz_test_force_svg_rasterizer_fail;
+extern int img2tikz_test_force_downscale_fail;
+#endif
 
 #define MIN_INT(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX_INT(a, b) (((a) > (b)) ? (a) : (b))
@@ -123,10 +136,64 @@ static int can_load_webp(const char *path) {
 
 static int can_load_any(const char *path) {
     (void)path;
+#ifdef IMG2TIKZ_TEST_HOOKS
+    if (img2tikz_test_force_can_load_any >= 0) {
+        return img2tikz_test_force_can_load_any;
+    }
+#endif
     return 1;
 }
 
 static int load_webp_via_ffmpeg(const char *path, Image *img) {
+#ifdef _WIN32
+    char temp_dir[MAX_PATH];
+    char temp_stem[MAX_PATH];
+    char temp_png[MAX_PATH];
+
+    DWORD dir_len = GetTempPathA((DWORD)sizeof(temp_dir), temp_dir);
+    if (dir_len == 0 || dir_len >= sizeof(temp_dir)) {
+        fprintf(stderr, "Failed to locate temporary directory for WebP decode\n");
+        return 0;
+    }
+
+    if (GetTempFileNameA(temp_dir, "i2t", 0, temp_stem) == 0) {
+        fprintf(stderr, "Failed to create temporary file for WebP decode\n");
+        return 0;
+    }
+
+    remove(temp_stem);
+    if ((size_t)snprintf(temp_png, sizeof(temp_png), "%s.png", temp_stem) >= sizeof(temp_png)) {
+        fprintf(stderr, "Temporary path too long for WebP decode\n");
+        return 0;
+    }
+
+    char cmd[4096];
+    if ((size_t)snprintf(cmd, sizeof(cmd),
+                         "ffmpeg -hide_banner -loglevel error -y -i \"%s\" -frames:v 1 -f image2 -vcodec png \"%s\"",
+                         path, temp_png) >= sizeof(cmd)) {
+        fprintf(stderr, "ffmpeg command too long for WebP decode\n");
+        remove(temp_png);
+        return 0;
+    }
+
+    int rc = system(cmd);
+    if (rc != 0) {
+        fprintf(stderr,
+                "Failed to decode WebP '%s' with ffmpeg (exit code %d). "
+                "Install ffmpeg or convert WebP to PNG/JPEG first.\n",
+                path, rc);
+        remove(temp_png);
+        return 0;
+    }
+
+    int ok = load_raster_image(temp_png, img);
+    remove(temp_png);
+    if (!ok) {
+        fprintf(stderr, "Temporary PNG decode failed after ffmpeg conversion\n");
+        return 0;
+    }
+    return 1;
+#else
     char temp_path[] = "/tmp/img2tikz-webp-XXXXXX";
     int fd = mkstemp(temp_path);
     if (fd < 0) {
@@ -187,6 +254,7 @@ static int load_webp_via_ffmpeg(const char *path, Image *img) {
         return 0;
     }
     return 1;
+#endif
 }
 
 static int load_svg_image(const char *path, Image *img) {
@@ -198,19 +266,39 @@ static int load_svg_image(const char *path, Image *img) {
 
     int w = (int)(svg->width + 0.5f);
     int h = (int)(svg->height + 0.5f);
+#ifdef IMG2TIKZ_TEST_HOOKS
+    if (img2tikz_test_force_svg_zero_size) {
+        w = 0;
+        h = 0;
+    }
+#endif
     if (w <= 0 || h <= 0) {
         w = 512;
         h = 512;
     }
 
-    unsigned char *rgba = (unsigned char *)malloc((size_t)w * (size_t)h * 4u);
+    unsigned char *rgba = NULL;
+#ifdef IMG2TIKZ_TEST_HOOKS
+    if (!img2tikz_test_force_svg_malloc_fail) {
+        rgba = (unsigned char *)malloc((size_t)w * (size_t)h * 4u);
+    }
+#else
+    rgba = (unsigned char *)malloc((size_t)w * (size_t)h * 4u);
+#endif
     if (!rgba) {
         fprintf(stderr, "Out of memory while allocating SVG raster (%dx%d)\n", w, h);
         nsvgDelete(svg);
         return 0;
     }
 
-    NSVGrasterizer *rast = nsvgCreateRasterizer();
+    NSVGrasterizer *rast = NULL;
+#ifdef IMG2TIKZ_TEST_HOOKS
+    if (!img2tikz_test_force_svg_rasterizer_fail) {
+        rast = nsvgCreateRasterizer();
+    }
+#else
+    rast = nsvgCreateRasterizer();
+#endif
     if (!rast) {
         fprintf(stderr, "Failed to create SVG rasterizer\n");
         free(rgba);
@@ -267,6 +355,11 @@ static unsigned char *resize_nearest_rgba(const unsigned char *src, int sw, int 
 }
 
 static int maybe_downscale(Image *img, int max_side) {
+#ifdef IMG2TIKZ_TEST_HOOKS
+    if (img2tikz_test_force_downscale_fail) {
+        return 0;
+    }
+#endif
     if (max_side <= 0) {
         return 1;
     }

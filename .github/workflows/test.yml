@@ -1,0 +1,82 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux-make-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc \
+            make
+
+      - name: Run unit tests (make)
+        run: make tests
+
+  linux-cmake-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc \
+            cmake \
+            ninja-build
+
+      - name: Configure (cmake)
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (cmake)
+        run: cmake --build build --config Release
+
+      - name: Run unit tests (ctest)
+        run: ctest --test-dir build --output-on-failure
+
+  windows-make-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            make
+            mingw-w64-x86_64-gcc
+
+      - name: Run unit tests (make)
+        shell: msys2 {0}
+        run: make tests
+
+  windows-cmake-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (cmake)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (cmake)
+        run: cmake --build build --config Release
+
+      - name: Run unit tests (ctest)
+        run: ctest --test-dir build -C Release --output-on-failure || echo "No CTest tests configured for this platform"

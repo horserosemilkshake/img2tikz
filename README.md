@@ -14,6 +14,15 @@ make
 
 This builds `./img2tikz`.
 
+## Build With CMake
+
+```sh
+cmake -S . -B build
+cmake --build build
+```
+
+This also builds `img2tikz` using a cross-platform CMake workflow.
+
 ## Usage
 
 ```sh
@@ -53,19 +62,33 @@ If you want to embed the picture in an existing document instead, copy only the
 Use the batch script below to run an end-to-end test:
 
 ```sh
-bash test/generate_all.sh
+bash samples/generate_all.sh
 ```
 
 What it does:
 
-- Scans `test/input` for supported image files (`.jpg`, `.jpeg`, `.png`, `.webp`, `.svg`).
-- Converts each image to TikZ in `test/tikz-output`.
-- Compiles generated `.tex` files to PDFs in `test/pdf-output`.
+- Scans `samples/input` for supported image files (`.jpg`, `.jpeg`, `.png`, `.webp`, `.svg`).
+- Converts each image to TikZ in `samples/tikz-output`.
+- Compiles generated `.tex` files to PDFs in `samples/pdf-output`.
 
 Useful overrides:
 
 ```sh
-MAX_SIDE=1920 QUANT_STEP=16 bash test/generate_all.sh
+MAX_SIDE=1920 QUANT_STEP=16 bash samples/generate_all.sh
+```
+
+Run unit tests:
+
+```sh
+make tests
+```
+
+Run unit tests with CMake/CTest:
+
+```sh
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
 - `MAX_SIDE`: Maximum raster side length before conversion.

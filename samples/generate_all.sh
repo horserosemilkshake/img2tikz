@@ -5,9 +5,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-INPUT_DIR="$REPO_ROOT/test/input"
-TIKZ_DIR="$REPO_ROOT/test/tikz-output"
-PDF_DIR="$REPO_ROOT/test/pdf-output"
+INPUT_DIR="$REPO_ROOT/samples/input"
+TIKZ_DIR="$REPO_ROOT/samples/tikz-output"
+PDF_DIR="$REPO_ROOT/samples/pdf-output"
 
 IMG2TIKZ_BIN="${IMG2TIKZ_BIN:-$REPO_ROOT/img2tikz}"
 CELL_PT="${CELL_PT:-0.8}"
