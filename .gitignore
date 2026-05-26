@@ -13,6 +13,13 @@ CMakeCache.txt
 cmake_install.cmake
 Makefile.cmake
 Testing/
+main.svg
+main_out.tex
+main_fail_out.tex
+ok.svg
+tiny-h0.svg
+tiny.svg
+tiny.png
 
 # Editor/system files
 .DS_Store

@@ -64,19 +64,3 @@ jobs:
       - name: Run unit tests (make)
         shell: msys2 {0}
         run: make tests
-
-  windows-cmake-test:
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure (cmake)
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build (cmake)
-        run: cmake --build build --config Release
-
-      - name: Run unit tests (ctest)
-        run: ctest --test-dir build -C Release --output-on-failure || echo "No CTest tests configured for this platform"

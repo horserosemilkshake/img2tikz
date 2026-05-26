@@ -202,7 +202,10 @@ static int test_remove(const char *path) {
     } while (0)
 
 static const char *test_tmp_dir(void) {
-    const char *dir = getenv("TMPDIR");
+    const char *dir = getenv("RUNNER_TEMP");
+    if (!dir || dir[0] == '\0') {
+        dir = getenv("TMPDIR");
+    }
     if (!dir || dir[0] == '\0') {
         dir = getenv("TEMP");
     }
@@ -210,7 +213,11 @@ static const char *test_tmp_dir(void) {
         dir = getenv("TMP");
     }
     if (!dir || dir[0] == '\0') {
+#ifdef _WIN32
         dir = ".";
+#else
+        dir = "/tmp";
+#endif
     }
     return dir;
 }

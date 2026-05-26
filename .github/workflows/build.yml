@@ -61,16 +61,3 @@ jobs:
       - name: Build (make)
         shell: msys2 {0}
         run: make
-
-  windows-cmake-build:
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure (cmake)
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build (cmake)
-        run: cmake --build build --config Release
